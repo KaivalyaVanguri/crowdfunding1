@@ -2,7 +2,7 @@
 import './App.css';
 import {useEffect, useState} from "react";
 import idl from './idl.json';
-import { Connection, PublicKey, clusterApiUrl} from '@solana/web3.js';
+import { Connection, PublicKey, clusterApiUrl, LAMPORTS_PER_SOL} from '@solana/web3.js';
 import { Program, AnchorProvider, web3, utils, BN } from '@project-serum/anchor';
 import {Buffer} from 'buffer';//, BN
 window.Buffer = Buffer;
@@ -95,7 +95,7 @@ const App = () => {
       console.error("Error creating campaign account:",error);
     }
   };
-  const donate = async publicKey =>{
+  const donate = async (publicKey) =>{
     try{
       const provider = getProvider()
       const program = new Program(idl, programID, provider)
@@ -112,6 +112,23 @@ const App = () => {
 
     }catch(error){
       console.error("Error donating: ",error);
+    }
+  };
+
+  const withdraw = async(publicKey) => {
+    try{
+      const provider = getProvider();
+      const program = new Program(idl, programID, provider);
+      await program.rpc.withdraw(new BN(0.2 * web3.LAMPORTS_PER_SOL),{
+        accounts:{
+          campaign: publicKey,
+          user: provider.wallet.publicKey,
+          //here we dont need system program 
+        },
+      });
+      console.log("Withdrew some money from the campaign:", publicKey.toString());
+    }catch(error){
+      console.error("Error in withdrawing:",error)
     }
   }
   const renderNotConnectedContainer = () => (
@@ -134,6 +151,9 @@ const App = () => {
       <p>{campaign.description}</p>
       <button onClick={() => donate(campaign.pubkey)}>
         Click to donate! 
+      </button>
+      <button onClick={() => withdraw(campaign.pubkey)}>
+        Click to withdraw!
       </button>
       <br/>
     </>))}

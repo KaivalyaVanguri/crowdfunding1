@@ -82,4 +82,3 @@ pub struct Campaign{
     pub description: String,
     pub amount_donated: u64
 }
-
