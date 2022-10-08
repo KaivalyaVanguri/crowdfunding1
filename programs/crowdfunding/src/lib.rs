@@ -31,7 +31,7 @@ pub mod crowdfunding {
         **user.to_account_info().try_borrow_mut_lamports()? += amount;
         Ok(())
     }
-    pub fn donate(ctx: Context<Donate>, amount: u64) -> Result<()>{
+    pub fn donate(ctx: Context<Donate>, amount: u64) -> ProgramResult{
         let ix = anchor_lang::solana_program::system_instruction::transfer(
             &ctx.accounts.user.key(),
             &ctx.accounts.campaign.key(),
@@ -82,3 +82,4 @@ pub struct Campaign{
     pub description: String,
     pub amount_donated: u64
 }
+

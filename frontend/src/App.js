@@ -17,7 +17,7 @@ const opts = {
 const {SystemProgram} = web3;
 const App = () => {
   const [walletAddress, setWalletAddress] = useState(null);
-  //const [campaigns, setCampaigns] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
   const getProvider = () => {
     const connection = new Connection(network, opts.preflightCommitment);
     const provider = new AnchorProvider(
@@ -57,7 +57,18 @@ const App = () => {
       setWalletAddress(response.publicKey.toString());
     }
   };
-
+  const getCampaigns = async() => {
+    const connection = new Connection(network, opts.preflightCommitment);
+    const provider = getProvider();
+    const program = new Program(idl, programID, provider);
+    Promise.all((await connection.getProgramAccounts(programID)).map(
+      async campaign => ({
+        ...(await program.account.campaign.fetch(campaign.pubkey)),
+        pubkey: campaign.pubkey,
+        })
+      ) 
+    ).then(campaigns => setCampaigns(campaigns));  
+  };
   const createCampaign = async() => {
     try{
       const provider = getProvider();
@@ -65,14 +76,14 @@ const App = () => {
       const[campaign] = await PublicKey.findProgramAddress(
         [
           utils.bytes.utf8.encode("CAMPAIGN_DEMO"),
-          provider.wallet.publicKey.toBuffer(),
+          provider.wallet.publicKey.toBuffer()
         ],
         program.programId
       );
       await program.rpc.create('campaign name', 'campaign description',{
         accounts: {
           campaign, 
-          user: provider.wallet.publicKey,
+          user: provider.wallet.publicKey.toBuffer(),
           systemProgram: SystemProgram.programId,
         },
       });
@@ -84,12 +95,49 @@ const App = () => {
       console.error("Error creating campaign account:",error);
     }
   };
+  const donate = async publicKey =>{
+    try{
+      const provider = getProvider()
+      const program = new Program(idl, programID, provider)
 
+      await program.rpc.donate(new BN(0.2*web3.LAMPORTS_PER_SOL),{
+        accounts:{
+          campaign: publicKey,
+          user: provider.wallet.publicKey,
+          systemProgram: SystemProgram.programId,
+        },
+      });
+      console.log("Donated some money to:", publicKey.toString())
+      getCampaigns();
+
+    }catch(error){
+      console.error("Error donating: ",error);
+    }
+  }
   const renderNotConnectedContainer = () => (
     <button onClick = {connectWallet}>Connect to Wallet</button>
   );
   const renderConnectedContainer = () => (
-    <button onClick = {createCampaign}>Create a campaign</button>
+    <>
+    <button onClick = {createCampaign}>Create a campaign...</button>
+    <button onClick = {getCampaigns}>Get a list of campaigns</button>
+    <br />
+    {campaigns.map(campaign => (<>
+      <p>Campaign ID: {campaign.pubkey.toString()}</p>
+      <p>
+        Balance: 
+        {(
+          campaign.amountDonated / web3.LAMPORTS_PER_SOL
+        ).toString()}
+      </p>
+      <p>{campaign.name}</p>
+      <p>{campaign.description}</p>
+      <button onClick={() => donate(campaign.pubkey)}>
+        Click to donate! 
+      </button>
+      <br/>
+    </>))}
+    </>
   );
   useEffect(()=>{
     const onLoad = async() => {
